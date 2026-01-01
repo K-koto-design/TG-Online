@@ -2,222 +2,293 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <title>К-Онлайн 2026</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>K-Bank Mini App</title>
+    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
     <style>
         :root {
-            --tg-theme-bg-color: #f4f4f7;
-            --tg-theme-text-color: #000000;
-            --tg-theme-hint-color: #999999;
-            --tg-theme-link-color: #248bcf;
-            --primary: #5856d6;
-            --secondary: #ff9500;
-            --success: #34c759;
+            --bg-body: #0a0f1e;
+            --grad-ny: linear-gradient(170deg, #001529 0%, #003366 40%, #800000 100%);
+            --ny-gold: #f1c40f;
             --white: #ffffff;
+            --danger: #ff3b30;
+            --radius-card: 24px;
+            --radius-btn: 20px;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--tg-theme-secondary-bg-color, #f4f4f7);
-            color: var(--tg-theme-text-color);
-            margin: 0; padding: 0;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        /* Хедер с данными из TG */
-        .header {
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .user-info { display: flex; align-items: center; gap: 10px; }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-
-        /* Баланс */
-        .balance-card {
-            margin: 0 20px 20px;
-            padding: 25px;
-            background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
-            border-radius: 20px;
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background: var(--bg-body); 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
             color: white;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
-        .balance-label { font-size: 14px; opacity: 0.7; }
-        .balance-amount { font-size: 32px; font-weight: 800; margin: 10px 0; }
 
-        /* Быстрые действия */
-        .actions {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            padding: 0 20px 20px;
+        #snow-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 9999;
         }
-        .action-btn {
-            background: var(--white);
-            border-radius: 15px;
-            padding: 15px 5px;
-            text-align: center;
-            font-size: 11px;
-            font-weight: 600;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        .action-btn span { display: block; font-size: 20px; margin-bottom: 5px; }
 
-        /* Копилки (Интересная фишка) */
-        .section-title { padding: 0 20px 10px; font-weight: 700; font-size: 18px; }
-        .goals-container {
-            display: flex;
-            overflow-x: auto;
-            padding: 0 20px 20px;
-            gap: 15px;
-            scroll-snap-type: x mandatory;
+        .screen { 
+            display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; height: 100%; overflow-y: auto; 
+            padding-bottom: 40px;
         }
-        .goal-card {
-            min-width: 140px;
-            background: var(--white);
-            padding: 15px;
-            border-radius: 18px;
-            scroll-snap-align: start;
-        }
-        .goal-progress {
-            height: 6px;
-            background: #eee;
-            border-radius: 3px;
-            margin: 10px 0;
-            overflow: hidden;
-        }
-        .progress-fill { height: 100%; background: var(--success); width: 65%; }
+        .screen.active { display: block !important; animation: fadeIn 0.4s ease; }
 
-        /* Список операций */
-        .history {
-            background: var(--white);
-            border-top-left-radius: 30px;
-            border-top-right-radius: 30px;
-            padding: 20px;
-            min-height: 300px;
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+
+        /* Новогодний дизайн хедера */
+        .header-top { 
+            background: var(--grad-ny); 
+            padding: 60px 20px 40px; 
+            border-radius: 0 0 40px 40px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-bottom: 2px solid rgba(255,255,255,0.1);
         }
-        .item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 15px 0;
-            border-bottom: 1px solid #f0f0f0;
+
+        .user-meta { display: flex; justify-content: space-between; align-items: center; }
+        .ava-box { 
+            width: 55px; height: 55px; 
+            background: rgba(255,255,255,0.15); 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            font-weight: 800; border: 2px solid var(--ny-gold);
+            position: relative;
         }
-        .item-icon { width: 40px; height: 40px; background: #f0f0f7; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-        .item-info { flex: 1; margin-left: 15px; }
-        .item-name { font-weight: 600; font-size: 15px; }
-        .item-date { font-size: 12px; color: var(--tg-theme-hint-color); }
-        .item-sum { font-weight: 700; }
-        .minus { color: #000; }
-        .plus { color: var(--success); }
+        .santa-hat { position: absolute; top: -18px; left: -10px; font-size: 28px; transform: rotate(-15deg); }
+
+        /* Карточки */
+        .cards-row { display: flex; overflow-x: auto; padding: 20px 10px; gap: 15px; scrollbar-width: none; }
+        .v-card { 
+            min-width: 220px; height: 140px; border-radius: var(--radius-card); 
+            padding: 20px; display: flex; flex-direction: column; justify-content: space-between;
+            position: relative; overflow: hidden;
+        }
+        .v-card::before { content: '❄️'; position: absolute; right: -10px; bottom: -10px; font-size: 80px; opacity: 0.1; }
+        .c-black { background: linear-gradient(135deg, #1a1a1a 0%, #333 100%); }
+        .c-gold { background: linear-gradient(135deg, #d4af37 0%, #f1c40f 100%); color: #4a3b00; }
+
+        /* Виджеты */
+        .widget { 
+            background: rgba(255,255,255,0.08); 
+            backdrop-filter: blur(10px);
+            border-radius: 20px; padding: 18px; margin: 12px 20px; 
+            display: flex; align-items: center; gap: 15px; 
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .w-ico { width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; background: rgba(255,255,255,0.1); }
+
+        /* Ошибка входа */
+        .error-wrap { padding: 100px 40px; text-align: center; }
+        .error-icon { font-size: 60px; margin-bottom: 20px; }
+
+        .btn-main { 
+            width: 100%; height: 55px; border: none; border-radius: var(--radius-btn); 
+            font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 15px;
+            transition: 0.3s;
+        }
+        .btn-gold { background: var(--ny-gold); color: #000; }
+        .btn-outline { background: transparent; border: 1px solid white; color: white; margin-top: 20px; }
+
+        input { 
+            width: 100%; height: 55px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.2); 
+            padding: 0 15px; background: rgba(255,255,255,0.05); color: white; outline: none; margin-bottom: 10px;
+        }
+        
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
+        .modal-in { background: #1a1a1a; width: 85%; border-radius: 30px; padding: 30px; text-align: center; border: 1px solid var(--ny-gold); }
+
+        .loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div class="user-info">
-            <div id="user-avatar" class="avatar">?</div>
-            <div id="user-name" style="font-weight: 700;">Пользователь</div>
-        </div>
-        <div style="font-size: 20px;">🔔</div>
-    </div>
+<canvas id="snow-canvas"></canvas>
 
-    <div class="balance-card">
-        <div class="balance-label">Мой баланс</div>
-        <div class="balance-amount">128 450,00 ₽</div>
-        <div style="font-size: 12px; opacity: 0.6;">•••• 4492</div>
+<div id="screen-loading" class="screen active">
+    <div class="loading-screen">
+        <div style="font-size: 50px; animation: pulse 1.5s infinite;">🏦</div>
+        <p id="loading-text">Синхронизация с базой...</p>
     </div>
+</div>
 
-    <div class="actions">
-        <div class="action-btn" onclick="vibrate()"><span>💸</span>Перевод</div>
-        <div class="action-btn" onclick="vibrate()"><span>📱</span>Связь</div>
-        <div class="action-btn" onclick="vibrate()"><span>🧾</span>QR-код</div>
-        <div class="action-btn" onclick="vibrate()"><span>➕</span>Ещё</div>
+<div id="screen-no-id" class="screen">
+    <div class="error-wrap">
+        <div class="error-icon">🎅🛑</div>
+        <h2>Доступ ограничен</h2>
+        <p style="opacity: 0.7; line-height: 1.5;">Ваш Telegram ID нам не известен.<br>Зайдите в <b>Мобильное приложение</b> и укажите его там для привязки.</p>
+        <button class="btn-main btn-outline" onclick="tg.close()">Закрыть</button>
     </div>
+</div>
 
-    <div class="section-title">Мои цели</div>
-    <div class="goals-container">
-        <div class="goal-card">
-            <div style="font-size: 20px;">🏝</div>
-            <div style="font-size: 13px; font-weight: 600; margin-top: 5px;">Отпуск</div>
-            <div class="goal-progress"><div class="progress-fill" style="width: 40%;"></div></div>
-            <div style="font-size: 11px; color: grey;">40 000 / 100к</div>
-        </div>
-        <div class="goal-card">
-            <div style="font-size: 20px;">🏎</div>
-            <div style="font-size: 13px; font-weight: 600; margin-top: 5px;">Машина</div>
-            <div class="goal-progress"><div class="progress-fill" style="width: 15%; background: var(--secondary);"></div></div>
-            <div style="font-size: 11px; color: grey;">150 000 / 1.2м</div>
-        </div>
-    </div>
-
-    <div class="history">
-        <div style="font-weight: 700; margin-bottom: 15px;">История операций</div>
-        
-        <div class="item">
-            <div class="item-icon">☕️</div>
-            <div class="item-info">
-                <div class="item-name">Starbucks</div>
-                <div class="item-date">Сегодня, 10:24</div>
+<div id="screen-home" class="screen">
+    <div class="header-top">
+        <div class="user-meta">
+            <div>
+                <div id="h-name" style="font-size:24px; font-weight:900;">Пользователь</div>
+                <div id="h-tg" style="font-size:12px; opacity:0.6;">ID: ---</div>
             </div>
-            <div class="item-sum minus">- 350 ₽</div>
-        </div>
-
-        <div class="item">
-            <div class="item-icon">💰</div>
-            <div class="item-info">
-                <div class="item-name">Перевод от мамы</div>
-                <div class="item-date">Вчера, 18:00</div>
+            <div class="ava-box">
+                <span class="santa-hat">🎅</span>
+                <span id="h-ava">?</span>
             </div>
-            <div class="item-sum plus">+ 5 000 ₽</div>
         </div>
-
-        <div class="item">
-            <div class="item-icon">🛒</div>
-            <div class="item-info">
-                <div class="item-name">Магнит</div>
-                <div class="item-date">28 окт, 14:20</div>
-            </div>
-            <div class="item-sum minus">- 1 240 ₽</div>
-        </div>
+        <div class="cards-row" id="h-cards"></div>
     </div>
 
-    <script>
-        const tg = window.Telegram.WebApp;
-        
-        // Инициализация
-        tg.ready();
-        tg.expand(); // Разворачиваем на весь экран
+    <div class="widget" onclick="vibrate(); view.nav('screen-transfer')">
+        <div class="w-ico">🎁</div>
+        <div style="flex:1;"><b>Перевод</b><div style="font-size:12px; opacity:0.5;">Праздничные выплаты</div></div>
+    </div>
 
-        // Настройка цветов под тему Telegram
-        document.documentElement.style.setProperty('--tg-theme-bg-color', tg.backgroundColor);
-        
-        // Получаем данные пользователя
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            const user = tg.initDataUnsafe.user;
-            document.getElementById('user-name').innerText = user.first_name;
-            document.getElementById('user-avatar').innerText = user.first_name.charAt(0);
+    <div class="widget" onclick="vibrate(); view.nav('screen-exchange')">
+        <div class="w-ico">💵</div>
+        <div style="flex:1;"><b>Обмен валюты</b><div id="w-usd">0.00 $</div></div>
+    </div>
+
+    <div class="widget" onclick="vibrate(); view.nav('screen-loan')">
+        <div class="w-ico">🌟</div>
+        <div style="flex:1;"><b>Карта Gold</b><div style="font-size:12px; opacity:0.5;">Лимит до 500к</div></div>
+    </div>
+</div>
+
+<div id="modal-success" class="modal">
+    <div class="modal-in">
+        <div style="font-size:50px;">🎄</div>
+        <h2 id="suc-h">Успешно!</h2>
+        <div id="suc-val" style="font-size:28px; font-weight:900; color:var(--ny-gold);">0 ₽</div>
+        <p id="suc-p" style="opacity:0.6; margin-bottom:20px;"></p>
+        <button class="btn-main btn-gold" onclick="view.hideSuccess()">Отлично</button>
+    </div>
+</div>
+
+<div id="screen-transfer" class="screen" style="padding: 40px 20px;">
+    <div style="font-size:30px; margin-bottom:20px;" onclick="view.nav('screen-home')">←</div>
+    <h2>Новогодний перевод</h2>
+    <input type="text" id="tr-target" placeholder="ID или Имя получателя">
+    <input type="number" id="tr-val" placeholder="Сумма (₽)">
+    <button class="btn-main btn-gold" onclick="bank.send()">Отправить подарок</button>
+</div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    // Настройки Firebase (из вашего кода)
+    const config = { 
+        apiKey: "AIzaSyA3J7KnUgxUHZigwRKmndm7xyxJeeLCrxg", 
+        databaseURL: "https://webapp-b7149-default-rtdb.europe-west1.firebasedatabase.app", 
+        projectId: "webapp-b7149" 
+    };
+    firebase.initializeApp(config);
+    const rtdb = firebase.database();
+
+    let state = { user: null, all: [] };
+
+    const view = {
+        nav: (id) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        },
+        drawDash: () => {
+            const u = state.user;
+            document.getElementById('h-name').innerText = u.name;
+            document.getElementById('h-tg').innerText = 'ID: ' + u.telegramId;
+            document.getElementById('h-ava').innerText = u.name[0];
+            document.getElementById('w-usd').innerText = (u.usd || 0).toFixed(2) + " $";
             
-            // Если есть фото профиля
-            if (user.photo_url) {
-                document.getElementById('user-avatar').innerHTML = `<img src="${user.photo_url}" style="width:100%; height:100%; border-radius:50%">`;
-            }
+            let cards = `<div class="v-card c-black"><div>MIR Physical</div><div style="font-size:24px; font-weight:800;">${(u.balance||0).toLocaleString()} ₽</div></div>`;
+            if(u.hasCredit) cards += `<div class="v-card c-gold"><div>GOLD Credit</div><div style="font-size:24px; font-weight:800;">${(u.creditBalance||0).toLocaleString()} ₽</div></div>`;
+            document.getElementById('h-cards').innerHTML = cards;
+        },
+        showSuccess: (h, v, p) => {
+            document.getElementById('suc-h').innerText = h;
+            document.getElementById('suc-val').innerText = v;
+            document.getElementById('suc-p').innerText = p;
+            document.getElementById('modal-success').style.display = 'flex';
+        },
+        hideSuccess: () => {
+            document.getElementById('modal-success').style.display = 'none';
+            view.nav('screen-home');
         }
+    };
 
-        // Функция вибрации (Haptic Feedback)
-        function vibrate() {
-            tg.HapticFeedback.impactOccurred('medium');
+    const logic = {
+        init: () => {
+            // Рисуем снег
+            startSnow();
+
+            // Получаем ID из Телеграма
+            const tgUser = tg.initDataUnsafe?.user;
+            const tgId = tgUser ? String(tgUser.id) : null;
+
+            rtdb.ref('clients').on('value', s => {
+                const data = s.val();
+                state.all = data ? Object.keys(data).map(k => ({...data[k], fbKey: k})) : [];
+
+                if (!tgId) {
+                    document.getElementById('loading-text').innerText = "Запустите через Telegram";
+                    return;
+                }
+
+                const found = state.all.find(u => String(u.telegramId) === tgId);
+
+                if (found) {
+                    state.user = found;
+                    view.drawDash();
+                    view.nav('screen-home');
+                } else {
+                    view.nav('screen-no-id');
+                }
+            });
         }
+    };
 
-        // Главная кнопка Telegram (внизу)
-        tg.MainButton.setText("ПОДДЕРЖКА");
-        tg.MainButton.show();
-        tg.MainButton.onClick(() => {
-            tg.showAlert("Служба поддержки скоро свяжется с вами!");
-        });
-    </script>
+    const bank = {
+        send: () => {
+            const targetQuery = document.getElementById('tr-target').value.toLowerCase().trim();
+            const val = parseInt(document.getElementById('tr-val').value);
+            const u = state.user;
+
+            if(!targetQuery || !val || val <= 0) return alert("Ошибка ввода");
+            const target = state.all.find(x => String(x.telegramId) === targetQuery || x.name.toLowerCase() === targetQuery);
+
+            if(!target || target.fbKey === u.fbKey) return alert("Получатель не найден");
+            if(u.balance < val) return alert("Недостаточно средств");
+
+            // Простой перевод без модерации для примера (логика как в вашем коде)
+            rtdb.ref(`clients/${u.fbKey}`).update({ balance: u.balance - val });
+            rtdb.ref(`clients/${target.fbKey}`).update({ balance: (target.balance||0) + val });
+            rtdb.ref(`history/${u.fbKey}`).push({ title: 'Подарок: ' + target.name, val: val, type: 'minus', ico: '🎁', status: 'done' });
+            
+            vibrate();
+            view.showSuccess("Отправлено", val + " ₽", "Получатель: " + target.name);
+        }
+    };
+
+    function vibrate() { tg.HapticFeedback.impactOccurred('medium'); }
+
+    function startSnow() {
+        const canvas = document.getElementById('snow-canvas');
+        const ctx = canvas.getContext('2d');
+        let flakes = [];
+        function res() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.onresize = res; res();
+        for(let i=0; i<80; i++) flakes.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*3+1, v:Math.random()*1+0.5});
+        function draw() {
+            ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle="white"; ctx.beginPath();
+            flakes.forEach(f => { ctx.moveTo(f.x, f.y); ctx.arc(f.x, f.y, f.r, 0, Math.PI*2); }); ctx.fill();
+            flakes.forEach(f => { f.y+=f.v; if(f.y>canvas.height) f.y=-5; }); requestAnimationFrame(draw);
+        }
+        draw();
+    }
+
+    window.onload = logic.init;
+</script>
+
 </body>
 </html>
