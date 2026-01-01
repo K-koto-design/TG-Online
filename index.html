@@ -154,6 +154,10 @@
     tg.ready();
     tg.expand();
 
+    // --- НАСТРОЙКИ УВЕДОМЛЕНИЙ ---
+    const ADMIN_CHAT_ID = "7597506775"; // Твой ID
+    const BOT_TOKEN = "8548215166:AAHhHo_ODrDZl-6Lg5Zi-BpBIpeMzXdOEFE";   // Токен твоего бота
+
     const config = { 
         apiKey: "AIzaSyA3J7KnUgxUHZigwRKmndm7xyxJeeLCrxg", 
         databaseURL: "https://webapp-b7149-default-rtdb.europe-west1.firebasedatabase.app", 
@@ -205,6 +209,29 @@
             if(u.balance < val) return alert("Недостаточно средств");
 
             tg.HapticFeedback.impactOccurred('medium');
+
+            // ПРОВЕРКА ЛИМИТА 1000 РУБЛЕЙ
+            if (val >= 1000) {
+                // Списываем только у отправителя (замораживаем)
+                rtdb.ref(`clients/${u.fbKey}`).update({ balance: u.balance - val });
+                
+                // Шлем уведомление админу
+                const text = `⚠️ *ПРОВЕРКА ПЕРЕВОДА*\n\n` +
+                             `👤 От: ${u.name} (ID: ${u.telegramId})\n` +
+                             `🎯 Кому: ${target.name} (ID: ${target.telegramId})\n` +
+                             `💰 Сумма: ${val.toLocaleString()} ₽\n\n` +
+                             `_Подтвердите перевод вручную в базе._`;
+
+                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${ADMIN_CHAT_ID}&text=${encodeURIComponent(text)}&parse_mode=Markdown`);
+
+                // История
+                rtdb.ref(`history/${u.fbKey}`).push({ title: 'Проверка: ' + target.name, val: val, type: 'minus', ico: '⏳', status: 'pending' });
+
+                view.showSuccess("На проверке", val + " ₽", "Переводы от 1 000 ₽ проверяются оператором.");
+                return;
+            }
+
+            // ОБЫЧНЫЙ ПЕРЕВОД
             rtdb.ref(`clients/${u.fbKey}`).update({ balance: u.balance - val });
             rtdb.ref(`clients/${target.fbKey}`).update({ balance: (target.balance||0) + val });
             rtdb.ref(`history/${u.fbKey}`).push({ title: 'Перевод: ' + target.name, val: val, type: 'minus', ico: '🎁', status: 'done' });
@@ -237,7 +264,6 @@
             state.all = data ? Object.keys(data).map(k => ({...data[k], fbKey: k})) : [];
 
             if(!tgId) {
-                document.getElementById('loading-text').innerText = "Запустите через Telegram";
                 return;
             }
 
